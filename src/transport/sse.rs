@@ -1,6 +1,7 @@
 //! Custom SSE server for MCP with authentication support.
 //!
 //! This reimplements rmcp's SSE server logic to allow wrapping with auth middleware.
+//! Sessions are cleaned up when the SSE connection drops (client disconnect).
 
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
@@ -139,11 +140,33 @@ async fn post_event_handler(
     };
 
     if tx.send(message).await.is_err() {
-        tracing::error!("failed to send message to session");
+        // Session dropped — clean up stale entry
+        app.txs.write().await.remove(session_id.as_str());
         return Err(StatusCode::GONE);
     }
 
     Ok(StatusCode::ACCEPTED)
+}
+
+/// Guard that removes the session from TxStore when the SSE stream is dropped.
+///
+/// When a client disconnects (closes the browser, network drop, etc.),
+/// Axum drops the `Sse` response stream. This guard runs cleanup on drop,
+/// ensuring stale sessions don't accumulate.
+struct SessionDropGuard {
+    session_id: SessionId,
+    tx_store: TxStore,
+}
+
+impl Drop for SessionDropGuard {
+    fn drop(&mut self) {
+        let session_id = self.session_id.clone();
+        let tx_store = self.tx_store.clone();
+        tracing::debug!(%session_id, "SSE connection dropped, cleaning up session");
+        tokio::spawn(async move {
+            tx_store.write().await.remove(&session_id);
+        });
+    }
 }
 
 async fn sse_handler(
@@ -172,6 +195,7 @@ async fn sse_handler(
 
     if app.transport_tx.send(transport).is_err() {
         tracing::warn!("failed to send transport - server may be closing");
+        app.txs.write().await.remove(&session_id);
         let mut response = Response::new("server is closing".to_string());
         *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
         return Err(response);
@@ -182,13 +206,31 @@ async fn sse_handler(
         .event("endpoint")
         .data(format!("{post_path}?sessionId={session_id}"));
 
+    // The drop guard ensures session cleanup when the SSE stream is dropped
+    // (client disconnect, network interruption, etc.)
+    let drop_guard = SessionDropGuard {
+        session_id,
+        tx_store: app.txs.clone(),
+    };
+
     let message_stream =
         ReceiverStream::new(to_client_rx).map(|message| match serde_json::to_string(&message) {
             Ok(json) => Ok(Event::default().event("message").data(&json)),
             Err(e) => Err(std::io::Error::new(std::io::ErrorKind::InvalidData, e)),
         });
 
-    let stream = futures::stream::once(futures::future::ok(endpoint_event)).chain(message_stream);
+    let stream = futures::stream::once(futures::future::ok(endpoint_event))
+        .chain(message_stream)
+        // Keep the drop guard alive for the lifetime of the stream.
+        // When the stream is dropped (client disconnects), the guard
+        // fires and removes the session from TxStore.
+        .chain(futures::stream::once(async move {
+            drop(drop_guard);
+            Err(std::io::Error::new(
+                std::io::ErrorKind::ConnectionAborted,
+                "stream ended",
+            ))
+        }));
 
     Ok(Sse::new(stream)
         .keep_alive(axum::response::sse::KeepAlive::new().interval(Duration::from_secs(30))))
