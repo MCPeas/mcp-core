@@ -158,11 +158,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_valid_bearer_token() {
-        let app = create_test_router("secret123");
+        let app = create_test_router("test-token-not-a-real-secret");
 
         let request = Request::builder()
             .uri("/test")
-            .header("Authorization", "Bearer secret123")
+            .header("Authorization", "Bearer test-token-not-a-real-secret")
             .body(Body::empty())
             .unwrap();
 
@@ -172,7 +172,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_invalid_bearer_token() {
-        let app = create_test_router("secret123");
+        let app = create_test_router("test-token-not-a-real-secret");
 
         let request = Request::builder()
             .uri("/test")
@@ -186,11 +186,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_valid_basic_auth() {
-        let app = create_test_router("secret123");
+        let app = create_test_router("test-token-not-a-real-secret");
 
-        // "user:secret123" in base64
-        let credentials =
-            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, "user:secret123");
+        // "user:test-token-not-a-real-secret" in base64
+        let credentials = base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            "user:test-token-not-a-real-secret",
+        );
 
         let request = Request::builder()
             .uri("/test")
@@ -204,12 +206,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_invalid_basic_auth() {
-        let app = create_test_router("secret123");
+        let app = create_test_router("test-token-not-a-real-secret");
 
-        // "user:wrongpassword" in base64
+        // "user:wrong-token" in base64
         let credentials = base64::Engine::encode(
             &base64::engine::general_purpose::STANDARD,
-            "user:wrongpassword",
+            "user:wrong-token",
         );
 
         let request = Request::builder()
@@ -224,7 +226,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_no_auth_header() {
-        let app = create_test_router("secret123");
+        let app = create_test_router("test-token-not-a-real-secret");
 
         let request = Request::builder().uri("/test").body(Body::empty()).unwrap();
 
