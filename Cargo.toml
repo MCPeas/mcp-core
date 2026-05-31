@@ -9,22 +9,42 @@ repository = "https://github.com/gronke/rust-mcp-core"
 publish = false
 
 [features]
-default = ["auth", "config", "bootstrap"]
+default = ["full"]
+# Tracing facade; opted into by bootstrap/sse/stdio/web.
+tracing = ["dep:tracing"]
 auth = ["dep:axum", "dep:tower", "dep:base64"]
 config = []
-transport = ["dep:axum", "dep:rmcp", "dep:tokio", "dep:tokio-stream", "dep:tokio-util", "dep:futures", "dep:rand", "dep:serde", "dep:serde_json", "dep:tracing"]
-bootstrap = ["dep:tracing", "dep:tracing-subscriber"]
-full = ["auth", "config", "transport", "bootstrap"]
+bootstrap = ["tracing", "dep:tracing-subscriber"]
+# MCP over HTTP+SSE (formerly `transport`).
+sse = ["dep:rmcp", "rmcp/transport-sse-server", "rmcp/server", "dep:axum", "dep:tokio", "dep:tokio-stream", "dep:tokio-util", "dep:futures", "dep:rand", "dep:serde", "dep:serde_json", "tracing"]
+# Back-compat alias for the old feature name.
+transport = ["sse"]
+# MCP over stdio — deliberately no axum, so stdio-only consumers build slim.
+stdio = ["dep:rmcp", "rmcp/transport-io", "rmcp/server", "dep:tokio", "tracing"]
+# Web server harness: static files, CORS, compression, content negotiation.
+web = ["dep:axum", "dep:tower-http", "auth", "tracing"]
+# Shared CLI/config (clap).
+cli = ["dep:clap"]
+# Unified server builder (ties web + sse + stdio + cli together).
+server = ["web", "sse", "stdio", "cli", "auth", "bootstrap", "config"]
+# All infrastructure (incl. stdio); batteries-included default for un-migrated consumers.
+full = ["auth", "config", "sse", "stdio", "bootstrap"]
 
 [dependencies]
-# Auth feature
+# Web / auth features (axum stack)
 axum = { version = "0.7", optional = true }
 tower = { version = "0.4", optional = true }
+tower-http = { version = "0.6", features = ["fs", "cors", "compression-gzip"], optional = true }
 base64 = { version = "0.22", optional = true }
 
-# Transport feature
-rmcp = { version = "0.1", features = ["server", "transport-sse-server"], optional = true }
-tokio = { version = "1", features = ["sync"], optional = true }
+# CLI feature
+clap = { version = "4.5", features = ["derive", "env"], optional = true }
+
+# Transport features (sse/stdio). rmcp keeps its defaults (macros+server+base64 — needed
+# for its model/builder types); transports are added per mcp-core feature. axum is pulled
+# only by rmcp's transport-sse-server, so a stdio-only build stays axum-free.
+rmcp = { version = "0.1", optional = true }
+tokio = { version = "1", features = ["sync", "net", "rt"], optional = true }
 tokio-stream = { version = "0.1", optional = true }
 tokio-util = { version = "0.7", optional = true }
 futures = { version = "0.3", optional = true }

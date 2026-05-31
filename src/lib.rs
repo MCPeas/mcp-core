@@ -36,11 +36,17 @@ pub mod auth;
 #[cfg(feature = "config")]
 pub mod config;
 
-#[cfg(feature = "transport")]
+#[cfg(feature = "sse")]
 pub mod transport;
 
 #[cfg(feature = "bootstrap")]
 pub mod bootstrap;
+
+#[cfg(feature = "cli")]
+pub mod cli;
+
+#[cfg(feature = "web")]
+pub mod web;
 
 // Re-exports for convenience
 #[cfg(feature = "auth")]
@@ -49,8 +55,11 @@ pub use auth::{TokenAuthLayer, TokenAuthService};
 #[cfg(feature = "config")]
 pub use config::{generate_random_token, safe_resolve, BaseConfig, SafePathError};
 
-#[cfg(feature = "transport")]
+#[cfg(feature = "sse")]
 pub use transport::{AuthSseServer, SseTransport};
 
 #[cfg(feature = "bootstrap")]
 pub use bootstrap::init_tracing;
+
+#[cfg(feature = "cli")]
+pub use cli::{ServerArgs, ServerConfig};

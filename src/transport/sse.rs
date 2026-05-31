@@ -258,23 +258,42 @@ pub struct AuthSseServer {
 }
 
 impl AuthSseServer {
-    /// Create a new SSE server and return the router that can be wrapped with middleware.
+    /// Create a new SSE server with routes at `/sse` and `/message`.
     ///
     /// Returns a tuple of `(server, router)` where:
     /// - `server` is used to accept new transports via `next_transport()`
     /// - `router` contains the SSE endpoints and can be layered with middleware
+    ///
+    /// Equivalent to [`AuthSseServer::with_base_path`] with an empty base.
     pub fn new() -> (Self, Router) {
+        Self::with_base_path("")
+    }
+
+    /// Create a new SSE server whose routes are mounted under `base_path`.
+    ///
+    /// For example `with_base_path("/mcp")` serves the event stream at
+    /// `GET /mcp/sse` and the client POST endpoint at `POST /mcp/message`, and
+    /// advertises `/mcp/message` in the SSE `endpoint` event so the router can be
+    /// merged directly into a larger app without axum nesting. An empty
+    /// `base_path` is equivalent to [`AuthSseServer::new`] (`/sse` + `/message`).
+    pub fn with_base_path(base_path: &str) -> (Self, Router) {
         let (transport_tx, transport_rx) = mpsc::unbounded_channel();
+
+        let base = base_path.trim_end_matches('/');
+        let sse_path = format!("{base}/sse");
+        let message_path = format!("{base}/message");
 
         let app = SseApp {
             txs: Arc::new(RwLock::new(HashMap::new())),
             transport_tx,
-            post_path: Arc::from("/message"),
+            // Advertise the same path the POST handler is mounted at, so clients
+            // POST to the correct place regardless of the configured base.
+            post_path: Arc::from(message_path.as_str()),
         };
 
         let router = Router::new()
-            .route("/sse", get(sse_handler))
-            .route("/message", post(post_event_handler))
+            .route(&sse_path, get(sse_handler))
+            .route(&message_path, post(post_event_handler))
             .with_state(app);
 
         (Self { transport_rx }, router)
