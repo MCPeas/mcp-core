@@ -31,8 +31,26 @@ pub fn public_router() -> Router {
         .route("/robots.txt", get(robots_txt))
 }
 
+/// Apply token authentication to `router` when `auth_token` is `Some`; otherwise return it
+/// unchanged. This is the single place the opt-in auth policy lives — `Some` requires a valid
+/// Bearer token or Basic-Auth password (the Basic challenge advertises `realm`), `None` leaves
+/// the router open.
+///
+/// Use it for any protected router — the web router (via [`build_web_router`]) and an MCP/SSE
+/// router alike — so consumers never wire [`TokenAuthLayer`] by hand or re-decide the policy.
+pub fn protect(router: Router, auth_token: Option<&str>, realm: &str) -> Router {
+    match auth_token {
+        Some(token) => router.layer(TokenAuthLayer::with_realm(
+            token.to_owned(),
+            realm.to_owned(),
+        )),
+        None => router,
+    }
+}
+
 /// Build the web router: the REST API mounted at `api_base` plus static files served as
-/// the fallback. When `auth_token` is set, both require Basic-Auth with the given `realm`.
+/// the fallback. When `auth_token` is set, both require Bearer/Basic auth with the given
+/// `realm` (see [`protect`]).
 ///
 /// Does **not** include `/health`/`/robots.txt` — merge [`public_router`] for those, so
 /// they stay public and available even in an `--sse`-only server.
@@ -46,13 +64,7 @@ pub fn build_web_router(
     let web = Router::new()
         .nest(api_base, api_router)
         .fallback_service(ServeDir::new(static_dir));
-    match auth_token {
-        Some(token) => web.layer(TokenAuthLayer::with_realm(
-            token.to_owned(),
-            realm.to_owned(),
-        )),
-        None => web,
-    }
+    protect(web, auth_token, realm)
 }
 
 /// Wrap a fully-assembled app with the shared layers (gzip compression, permissive CORS).
@@ -97,5 +109,66 @@ pub async fn serve(app: Router, listen: Vec<IpAddr>, port: u16) -> std::io::Resu
         Some(Ok(serve_result)) => serve_result,
         Some(Err(join_err)) => Err(std::io::Error::other(join_err)),
         None => Ok(()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{
+        body::Body,
+        http::{Request, StatusCode},
+        routing::get,
+    };
+    use tower::util::ServiceExt;
+
+    fn guarded(auth_token: Option<&str>) -> Router {
+        protect(
+            Router::new().route("/x", get(|| async { "OK" })),
+            auth_token,
+            "test-realm",
+        )
+    }
+
+    async fn status(app: Router, auth: Option<&str>) -> StatusCode {
+        let mut req = Request::builder().uri("/x");
+        if let Some(value) = auth {
+            req = req.header("Authorization", value);
+        }
+        app.oneshot(req.body(Body::empty()).unwrap())
+            .await
+            .unwrap()
+            .status()
+    }
+
+    #[tokio::test]
+    async fn none_leaves_router_open() {
+        assert_eq!(status(guarded(None), None).await, StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn some_rejects_missing_credentials() {
+        assert_eq!(
+            status(guarded(Some("secret")), None).await,
+            StatusCode::UNAUTHORIZED
+        );
+    }
+
+    #[tokio::test]
+    async fn some_accepts_bearer() {
+        assert_eq!(
+            status(guarded(Some("secret")), Some("Bearer secret")).await,
+            StatusCode::OK
+        );
+    }
+
+    #[tokio::test]
+    async fn some_accepts_basic_with_token_as_password() {
+        let creds =
+            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, "anyuser:secret");
+        assert_eq!(
+            status(guarded(Some("secret")), Some(&format!("Basic {creds}"))).await,
+            StatusCode::OK
+        );
     }
 }
