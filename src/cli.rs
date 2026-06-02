@@ -22,12 +22,16 @@ fn default_listen() -> Vec<IpAddr> {
 #[derive(Debug, Clone, clap::Args)]
 pub struct ServerArgs {
     /// Force MCP over stdio (exclusive). Suppresses logging; errors go to stderr.
-    #[arg(long, conflicts_with_all = ["sse", "web"])]
+    #[arg(long, conflicts_with_all = ["sse", "web", "mcp"])]
     pub stdio: bool,
 
-    /// Serve the MCP SSE endpoint over HTTP.
+    /// Serve the legacy MCP HTTP+SSE endpoints (/sse + /message) over HTTP.
     #[arg(long)]
     pub sse: bool,
+
+    /// Serve the MCP Streamable HTTP endpoint (/mcp) over HTTP.
+    #[arg(long)]
+    pub mcp: bool,
 
     /// Serve the web frontend and REST API over HTTP.
     #[arg(long)]
@@ -76,6 +80,7 @@ impl ServerArgs {
 pub struct ServerConfig {
     pub stdio: bool,
     pub sse: bool,
+    pub mcp: bool,
     pub web: bool,
     pub wait: Duration,
     pub http_port: u16,
@@ -89,6 +94,7 @@ impl Default for ServerConfig {
         Self {
             stdio: false,
             sse: false,
+            mcp: false,
             web: false,
             wait: Duration::from_millis(100),
             http_port: 8080,
@@ -104,6 +110,7 @@ impl From<ServerArgs> for ServerConfig {
         Self {
             stdio: a.stdio,
             sse: a.sse,
+            mcp: a.mcp,
             web: a.web,
             wait: a.wait(),
             http_port: a.http_port,
