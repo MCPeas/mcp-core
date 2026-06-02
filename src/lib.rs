@@ -4,7 +4,7 @@
 //!
 //! - **auth**: Token-based authentication middleware (Bearer and Basic Auth)
 //! - **config**: Configuration management with environment variable support
-//! - **transport**: SSE transport for MCP HTTP mode
+//! - **transport**: HTTP transports for MCP — legacy SSE (`/sse`) and Streamable HTTP (`/mcp`)
 //! - **bootstrap**: Tracing initialization utilities
 //!
 //! # Features
@@ -12,7 +12,8 @@
 //! - `auth` - Token authentication middleware (enabled by default)
 //! - `config` - Configuration utilities (enabled by default)
 //! - `bootstrap` - Tracing setup (enabled by default)
-//! - `transport` - SSE transport for MCP HTTP mode
+//! - `sse` - Legacy MCP HTTP+SSE transport (`/sse` + `/message`)
+//! - `streamable-http` - MCP Streamable HTTP transport (`/mcp`)
 //! - `full` - All features
 //!
 //! # Example
@@ -36,7 +37,7 @@ pub mod auth;
 #[cfg(feature = "config")]
 pub mod config;
 
-#[cfg(feature = "sse")]
+#[cfg(any(feature = "sse", feature = "streamable-http"))]
 pub mod transport;
 
 #[cfg(feature = "bootstrap")]
@@ -57,6 +58,9 @@ pub use config::{generate_random_token, safe_resolve, BaseConfig, SafePathError}
 
 #[cfg(feature = "sse")]
 pub use transport::{AuthSseServer, SseTransport};
+
+#[cfg(feature = "streamable-http")]
+pub use transport::streamable_http_router;
 
 #[cfg(feature = "bootstrap")]
 pub use bootstrap::init_tracing;

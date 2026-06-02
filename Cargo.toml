@@ -15,35 +15,40 @@ tracing = ["dep:tracing"]
 auth = ["dep:axum", "dep:tower", "dep:base64"]
 config = []
 bootstrap = ["tracing", "dep:tracing-subscriber"]
-# MCP over HTTP+SSE (formerly `transport`).
-sse = ["dep:rmcp", "rmcp/transport-sse-server", "rmcp/server", "dep:axum", "dep:tokio", "dep:tokio-stream", "dep:tokio-util", "dep:futures", "dep:rand", "dep:serde", "dep:serde_json", "tracing"]
+# MCP over legacy HTTP+SSE (two endpoints: GET /sse + POST /message). rmcp 1.7 removed
+# its server-side SSE transport, but this crate hand-rolls SSE on rmcp's low-level message
+# types (from `rmcp/server`), so no rmcp SSE transport feature is required.
+sse = ["dep:rmcp", "rmcp/server", "dep:axum", "dep:tokio", "dep:tokio-stream", "dep:tokio-util", "dep:futures", "dep:rand", "dep:serde", "dep:serde_json", "tracing"]
 # Back-compat alias for the old feature name.
 transport = ["sse"]
+# MCP over Streamable HTTP (rmcp 1.7+): a single content-negotiated /mcp endpoint.
+streamable-http = ["dep:rmcp", "rmcp/transport-streamable-http-server", "rmcp/server", "dep:axum", "dep:tokio", "dep:tokio-util", "tracing"]
 # MCP over stdio — deliberately no axum, so stdio-only consumers build slim.
 stdio = ["dep:rmcp", "rmcp/transport-io", "rmcp/server", "dep:tokio", "tracing"]
 # Web server harness: static files, CORS, compression, content negotiation.
 web = ["dep:axum", "dep:tower-http", "auth", "tracing"]
 # Shared CLI/config (clap).
 cli = ["dep:clap"]
-# Unified server builder (ties web + sse + stdio + cli together).
-server = ["web", "sse", "stdio", "cli", "auth", "bootstrap", "config"]
+# Unified server builder (ties web + sse + streamable-http + stdio + cli together).
+server = ["web", "sse", "streamable-http", "stdio", "cli", "auth", "bootstrap", "config"]
 # All infrastructure (incl. stdio); batteries-included default for un-migrated consumers.
-full = ["auth", "config", "sse", "stdio", "bootstrap"]
+full = ["auth", "config", "sse", "streamable-http", "stdio", "bootstrap"]
 
 [dependencies]
 # Web / auth features (axum stack)
-axum = { version = "0.7", optional = true }
-tower = { version = "0.4", optional = true }
+axum = { version = "0.8", optional = true }
+tower = { version = "0.5", optional = true }
 tower-http = { version = "0.6", features = ["fs", "cors", "compression-gzip"], optional = true }
 base64 = { version = "0.22", optional = true }
 
 # CLI feature
 clap = { version = "4.5", features = ["derive", "env"], optional = true }
 
-# Transport features (sse/stdio). rmcp keeps its defaults (macros+server+base64 — needed
-# for its model/builder types); transports are added per mcp-core feature. axum is pulled
-# only by rmcp's transport-sse-server, so a stdio-only build stays axum-free.
-rmcp = { version = "0.1", optional = true }
+# Transport features (sse/stdio/streamable-http). `rmcp/server` provides the model,
+# service and ServerHandler types the transports build on. rmcp 1.7's core no longer
+# pulls axum, so this crate supplies axum itself for the sse/web/streamable-http harnesses;
+# a stdio-only build still stays axum-free.
+rmcp = { version = "1.7", optional = true }
 tokio = { version = "1", features = ["sync", "net", "rt"], optional = true }
 tokio-stream = { version = "0.1", optional = true }
 tokio-util = { version = "0.7", optional = true }
@@ -58,8 +63,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = tr
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
-axum = { version = "0.7" }
-tower = { version = "0.4", features = ["util"] }
+axum = { version = "0.8" }
+tower = { version = "0.5", features = ["util"] }
 tempfile = "3"
 
 [lib]
