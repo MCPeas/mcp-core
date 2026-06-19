@@ -1,12 +1,10 @@
 //! Token generation utilities.
 
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::fmt::Write as _;
 
-/// Generate a random 32-character hex token.
+/// Generate a cryptographically random 32-character hex token (128 bits of entropy).
 ///
-/// Uses timestamp and process ID for randomness. Suitable for
-/// generating API tokens that need to be unique but don't require
-/// cryptographic security.
+/// Backed by the OS CSPRNG ([`getrandom`]), so it is safe to use as an auth secret.
 ///
 /// # Example
 ///
@@ -18,16 +16,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// assert!(token.chars().all(|c| c.is_ascii_hexdigit()));
 /// ```
 pub fn generate_random_token() -> String {
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    // Simple random generation using timestamp and process id
-    let pid = std::process::id();
-    let random: u64 = (timestamp as u64)
-        .wrapping_mul(pid as u64)
-        .wrapping_add(0xdeadbeef);
-    format!("{:016x}{:016x}", timestamp as u64, random)
+    let mut bytes = [0u8; 16];
+    getrandom::fill(&mut bytes).expect("OS CSPRNG (getrandom) unavailable");
+    let mut token = String::with_capacity(32);
+    for byte in bytes {
+        let _ = write!(token, "{byte:02x}");
+    }
+    token
 }
 
 #[cfg(test)]
@@ -49,8 +44,6 @@ mod tests {
     #[test]
     fn test_tokens_are_unique() {
         let token1 = generate_random_token();
-        // Small delay to ensure different timestamp
-        std::thread::sleep(std::time::Duration::from_millis(1));
         let token2 = generate_random_token();
         assert_ne!(token1, token2);
     }
