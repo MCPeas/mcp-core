@@ -11,6 +11,7 @@ use std::{
     sync::Arc,
     task::{Context, Poll},
 };
+use subtle::ConstantTimeEq;
 use tower::{Layer, Service};
 
 /// Layer that adds token authentication to a service.
@@ -96,7 +97,7 @@ where
                 if let Ok(auth_str) = auth_header.to_str() {
                     // Check Bearer token
                     if let Some(bearer_token) = auth_str.strip_prefix("Bearer ") {
-                        if bearer_token == token.as_ref() {
+                        if secret_eq(bearer_token, token.as_ref()) {
                             return inner.call(req).await;
                         }
                     }
@@ -105,7 +106,7 @@ where
                     if let Some(basic_creds) = auth_str.strip_prefix("Basic ") {
                         if let Ok(decoded) = base64_decode(basic_creds) {
                             if let Some((_username, password)) = decoded.split_once(':') {
-                                if password == token.as_ref() {
+                                if secret_eq(password, token.as_ref()) {
                                     return inner.call(req).await;
                                 }
                             }
@@ -127,6 +128,11 @@ where
             Ok(response)
         })
     }
+}
+
+/// Constant-time compare, so the token can't be recovered via response timing.
+fn secret_eq(presented: &str, token: &str) -> bool {
+    presented.as_bytes().ct_eq(token.as_bytes()).into()
 }
 
 fn base64_decode(input: &str) -> Result<String, ()> {
