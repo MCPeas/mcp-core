@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025-2026 Stefan Grönke <stefan@gronke.net>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Safe path resolution to prevent path traversal attacks.
 //!
 //! When serving files from a base directory (e.g. scraped data), user-controlled

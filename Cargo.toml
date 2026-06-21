@@ -3,9 +3,9 @@ name = "mcp-core"
 description = "Common MCP and Webserver infrastructure"
 version = "0.1.0"
 edition = "2021"
-authors = ["Stefan Grönke"]
-license = "BSD-3-Clause"
-repository = "https://github.com/gronke/rust-mcp-core"
+authors = ["Stefan Grönke <stefan@gronke.net>"]
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/MCPeas/mcp-core"
 publish = false
 
 [features]
