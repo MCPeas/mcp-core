@@ -1,0 +1,70 @@
+// SPDX-FileCopyrightText: 2025-2026 Stefan Grönke <stefan@gronke.net>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+// Standalone stylesheet for the public landing/login page (served at `/`). Compiled by build.rs
+// (grass) to $OUT_DIR/landing.css and inlined into the page, so `/` stays self-contained -- it
+// never loads the /ui/ shell bundle just to render a login form.
+
+$radius: 0.375rem;
+$accent: #4c6ef5;
+$ink: #212529;
+$muted: #6c757d;
+
+body {
+  font: 16px/1.6 system-ui, sans-serif;
+  max-width: 42rem;
+  margin: 3rem auto;
+  padding: 0 1rem;
+  color: $ink;
+}
+
+h1 {
+  font-size: 1.4rem;
+}
+
+h2 {
+  font-size: 1rem;
+  margin: 1.5rem 0 0.25rem;
+}
+
+code,
+pre {
+  background: #f6f8fa;
+  border-radius: $radius;
+}
+
+code {
+  padding: 0.1rem 0.3rem;
+}
+
+pre {
+  padding: 0.75rem;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+a.btn,
+button {
+  display: inline-block;
+  background: $accent;
+  color: #fff;
+  border: 0;
+  border-radius: $radius;
+  padding: 0.5rem 1rem;
+  text-decoration: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+input {
+  padding: 0.5rem;
+  border: 1px solid #ced4da;
+  border-radius: $radius;
+  font: inherit;
+  margin-right: 0.5rem;
+}
+
+.muted {
+  color: $muted;
+  font-size: 0.9rem;
+}
