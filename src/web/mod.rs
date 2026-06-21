@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025-2026 Stefan Grönke <stefan@gronke.net>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Web-server harness: assemble the HTTP router (health, robots, REST API, static
 //! files) and serve it on one or more listen addresses with CORS + compression.
 //!

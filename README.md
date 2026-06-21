@@ -1,4 +1,4 @@
-# rust-mcp-core
+# mcp-core
 
 Shared infrastructure for MCP and web servers in Rust.
 
@@ -15,10 +15,10 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-mcp-core = { git = "https://github.com/gronke/rust-mcp-core" }
+mcp-core = { git = "https://github.com/MCPeas/mcp-core" }
 
 # Or with specific features
-mcp-core = { git = "https://github.com/gronke/rust-mcp-core", features = ["full"] }
+mcp-core = { git = "https://github.com/MCPeas/mcp-core", features = ["full"] }
 ```
 
 ### Authentication Middleware
@@ -75,3 +75,14 @@ use mcp_core::init_tracing;
 // Enable debug logging for your crate, info for everything else
 init_tracing("my_server=debug,info");
 ```
+
+## License
+
+Copyright (C) 2025-2026 Stefan Grönke <stefan@gronke.net>.
+
+mcp-core is free software: you can redistribute it and/or modify it under the
+terms of the GNU Affero General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later version
+(`AGPL-3.0-or-later`). See [LICENSE](LICENSE) for the full text.
+
+Source: <https://github.com/MCPeas/mcp-core>

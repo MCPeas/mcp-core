@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025-2026 Stefan Grönke <stefan@gronke.net>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Token authentication middleware implementation.
 
 use axum::{
