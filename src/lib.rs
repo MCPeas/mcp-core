@@ -52,6 +52,9 @@ pub mod cli;
 #[cfg(feature = "web")]
 pub mod web;
 
+#[cfg(feature = "test-harness")]
+pub mod testing;
+
 // Re-exports for convenience
 #[cfg(feature = "auth")]
 pub use auth::{TokenAuthLayer, TokenAuthService};
@@ -70,3 +73,11 @@ pub use bootstrap::init_tracing;
 
 #[cfg(feature = "cli")]
 pub use cli::{ServerArgs, ServerConfig};
+
+#[cfg(feature = "web-ui")]
+pub use web::{
+    app_router, catalog_router, data_catalog_router, search_router, shell_dir, shell_router,
+    Cardinality, CatalogAction, CatalogItem, CatalogPage, CatalogProvider, CatalogQuery,
+    DataCatalog, EntityAction, EntityType, FilterToggle, Relationship, Resource, ResourceRef,
+    SearchHit, SearchProvider, SearchQuery, SearchResults,
+};

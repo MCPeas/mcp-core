@@ -39,6 +39,11 @@ jobs:
       - name: Run tests
         run: cargo test --all-features --verbose
 
+      # cargo test --all-features runs the ts-export test, regenerating web/src/shell/generated/.
+      # A diff here means the Rust wire types drifted from the committed TypeScript bindings.
+      - name: Check generated TS bindings are in sync
+        run: git diff --exit-code -- web/src/shell/generated
+
       - name: Save Cargo cache
         uses: actions/cache/save@v5
         if: always()
@@ -48,3 +53,63 @@ jobs:
             ~/.cargo/git
             target
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
+
+  web:
+    name: Web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting, lint, and types
+        run: npm run check
+
+  e2e:
+    name: E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Restore Cargo cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-
+
+      - name: Build the example MCP server
+        run: cargo build -p mcp-ui-demo
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Install Playwright browser
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser end-to-end tests
+        working-directory: web
+        run: npm run test:e2e

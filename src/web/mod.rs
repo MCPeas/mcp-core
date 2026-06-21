@@ -1,23 +1,20 @@
 // SPDX-FileCopyrightText: 2025-2026 Stefan Grönke <stefan@gronke.net>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Web-server harness: assemble the HTTP router (health, robots, REST API, static
-//! files) and serve it on one or more listen addresses with CORS + compression.
+//! Web-server harness: assemble the HTTP router (landing/login, health, robots, REST API, the
+//! UI shell) and serve it on one or more listen addresses with gzip + baseline security headers.
 //!
 //! This module is intentionally MCP-agnostic (no `rmcp`): a consumer composes
-//! [`public_router`] with [`build_web_router`] and/or its own MCP/SSE router, then
-//! hands the result to [`serve`].
+//! [`app_router`](shell::app_router) with its own MCP/SSE router, then hands the result to
+//! [`serve`].
 
 use std::net::{IpAddr, SocketAddr};
-use std::path::Path;
 
+use axum::http::{header, HeaderName, HeaderValue};
+use axum::response::Response;
 use axum::{routing::get, Router};
 use tokio::task::JoinSet;
-use tower_http::{
-    compression::CompressionLayer,
-    cors::{Any, CorsLayer},
-    services::ServeDir,
-};
+use tower_http::compression::CompressionLayer;
 
 use crate::auth::TokenAuthLayer;
 
@@ -39,8 +36,8 @@ pub fn public_router() -> Router {
 /// Bearer token or Basic-Auth password (the Basic challenge advertises `realm`), `None` leaves
 /// the router open.
 ///
-/// Use it for any protected router — the web router (via [`build_web_router`]) and an MCP/SSE
-/// router alike — so consumers never wire [`TokenAuthLayer`] by hand or re-decide the policy.
+/// A header-only check ([`TokenAuthLayer`]); [`app_router`](shell::app_router) is the usual
+/// entry point and layers session-cookie auth on top.
 pub fn protect(router: Router, auth_token: Option<&str>, realm: &str) -> Router {
     match auth_token {
         Some(token) => router.layer(TokenAuthLayer::with_realm(
@@ -51,33 +48,55 @@ pub fn protect(router: Router, auth_token: Option<&str>, realm: &str) -> Router 
     }
 }
 
-/// Build the web router: the REST API mounted at `api_base` plus static files served as
-/// the fallback. When `auth_token` is set, both require Bearer/Basic auth with the given
-/// `realm` (see [`protect`]).
-///
-/// Does **not** include `/health`/`/robots.txt` — merge [`public_router`] for those, so
-/// they stay public and available even in an `--sse`-only server.
-pub fn build_web_router(
-    static_dir: &Path,
-    api_router: Router,
-    api_base: &str,
-    auth_token: Option<&str>,
-    realm: &str,
-) -> Router {
-    let web = Router::new()
-        .nest(api_base, api_router)
-        .fallback_service(ServeDir::new(static_dir));
-    protect(web, auth_token, realm)
+/// Baseline CSP applied to every response. Under `web-ui` it also pins `script-src` to `'self'`
+/// plus the build-time SHA-256 of the inlined import-map script (emitted by `build.rs`), so no
+/// other inline script and no cross-origin script can run - the XSS lock that backs the `esm`
+/// renderer's same-origin guard. Other resource types are left unconstrained here (the shell
+/// loads same-origin assets); untrusted rendered content is contained by the script-free
+/// sandboxed iframe (`<mcp-frame>`), not by this policy.
+#[cfg(feature = "web-ui")]
+const CONTENT_SECURITY_POLICY: &str = concat!(
+    "script-src 'self' '",
+    env!("MCP_UI_CSP_SCRIPT_HASH"),
+    "'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+);
+/// Baseline CSP for non-UI `web` consumers (no shell, so no inline import map to hash).
+#[cfg(not(feature = "web-ui"))]
+const CONTENT_SECURITY_POLICY: &str =
+    "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'";
+
+/// Disable powerful browser features the shell never uses.
+const PERMISSIONS_POLICY: &str = "camera=(), microphone=(), geolocation=(), payment=()";
+
+/// Add baseline security headers to every response.
+async fn set_security_headers(mut response: Response) -> Response {
+    let headers = response.headers_mut();
+    headers.insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    headers.insert(header::X_FRAME_OPTIONS, HeaderValue::from_static("DENY"));
+    headers.insert(
+        header::REFERRER_POLICY,
+        HeaderValue::from_static("no-referrer"),
+    );
+    headers.insert(
+        header::CONTENT_SECURITY_POLICY,
+        HeaderValue::from_static(CONTENT_SECURITY_POLICY),
+    );
+    headers.insert(
+        HeaderName::from_static("permissions-policy"),
+        HeaderValue::from_static(PERMISSIONS_POLICY),
+    );
+    response
 }
 
-/// Wrap a fully-assembled app with the shared layers (gzip compression, permissive CORS).
+/// Wrap a fully-assembled app with the shared layers: baseline security headers + gzip
+/// compression. No CORS layer (the shell is same-origin); a consumer needing cross-origin
+/// adds its own.
 pub fn with_layers(app: Router) -> Router {
-    app.layer(CompressionLayer::new()).layer(
-        CorsLayer::new()
-            .allow_origin(Any)
-            .allow_methods(Any)
-            .allow_headers(Any),
-    )
+    app.layer(axum::middleware::map_response(set_security_headers))
+        .layer(CompressionLayer::new())
 }
 
 /// Serve `app` on every `addr:port` in `listen` concurrently, returning when the first
@@ -115,6 +134,43 @@ pub async fn serve(app: Router, listen: Vec<IpAddr>, port: u16) -> std::io::Resu
     }
 }
 
+mod session;
+pub use session::{login, logout, require_auth, WebAuth};
+
+mod landing;
+pub use landing::{info_page, Landing};
+
+/// serde `skip_serializing_if` helper: omit a `bool` field when it is `false`, so a default
+/// `false` (the common case for the catalog action/toggle flags) stays off the wire. Shared by
+/// the `catalog` and `data_catalog` submodules.
+#[cfg(feature = "web-ui")]
+fn is_false(b: &bool) -> bool {
+    !*b
+}
+
+#[cfg(feature = "web-ui")]
+mod shell;
+#[cfg(feature = "web-ui")]
+pub use shell::{app_router, shell_dir, shell_router};
+
+#[cfg(feature = "web-ui")]
+mod catalog;
+#[cfg(feature = "web-ui")]
+pub use catalog::{catalog_router, CatalogAction, CatalogItem, CatalogProvider};
+
+#[cfg(feature = "web-ui")]
+mod data_catalog;
+#[cfg(feature = "web-ui")]
+pub use data_catalog::{
+    data_catalog_router, Cardinality, CatalogPage, CatalogQuery, DataCatalog, EntityAction,
+    EntityType, FilterToggle, Relationship, Resource, ResourceRef,
+};
+
+#[cfg(feature = "web-ui")]
+mod search;
+#[cfg(feature = "web-ui")]
+pub use search::{search_router, SearchHit, SearchProvider, SearchQuery, SearchResults};
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -142,6 +198,23 @@ mod tests {
             .await
             .unwrap()
             .status()
+    }
+
+    #[tokio::test]
+    async fn with_layers_adds_security_headers_and_no_wildcard_cors() {
+        let app = with_layers(Router::new().route("/x", get(|| async { "OK" })));
+        let res = app
+            .oneshot(Request::builder().uri("/x").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        let h = res.headers();
+        assert_eq!(h["x-content-type-options"], "nosniff");
+        assert_eq!(h["x-frame-options"], "DENY");
+        assert!(h.contains_key("content-security-policy"));
+        assert!(h.contains_key("referrer-policy"));
+        assert!(h.contains_key("permissions-policy"));
+        // The permissive wildcard CORS is gone.
+        assert!(h.get("access-control-allow-origin").is_none());
     }
 
     #[tokio::test]

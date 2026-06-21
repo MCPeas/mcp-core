@@ -26,11 +26,27 @@ streamable-http = ["dep:rmcp", "rmcp/transport-streamable-http-server", "rmcp/se
 # MCP over stdio — deliberately no axum, so stdio-only consumers build slim.
 stdio = ["dep:rmcp", "rmcp/transport-io", "rmcp/server", "dep:tokio", "tracing"]
 # Web server harness: static files, CORS, compression, content negotiation.
-web = ["dep:axum", "dep:tower-http", "auth", "tracing"]
+web = ["dep:axum", "dep:axum-extra", "dep:tower-http", "dep:tokio", "dep:subtle", "dep:serde", "auth", "tracing"]
+# Build + serve the embedded Lit + Bootstrap UI shell (data-inspection front end).
+# Depends on the `web` harness (ServeDir/serve). The build-dependency compiles for every
+# build; the shell bake is gated on CARGO_FEATURE_WEB_UI in build.rs.
+web-ui = ["web", "dep:serde", "dep:serde_json"]
+# Render markdown fields/content as HTML in a sandboxed iframe. Vendors the `marked` browser
+# dependency and signals the shell (a meta tag) to use it; off by default so a UI that does not
+# render markdown never ships `marked`. Implies `web-ui`.
+web-markdown = ["web-ui"]
+# Generate the TypeScript bindings for the web data contract (ts-rs). Off by default; enabled in CI
+# (`cargo test --all-features`), where an export test writes web/src/shell/generated/*.ts.
+ts-export = ["web-ui", "dep:ts-rs"]
 # Shared CLI/config (clap).
 cli = ["dep:clap"]
 # Unified server builder (ties web + sse + streamable-http + stdio + cli together).
 server = ["web", "sse", "streamable-http", "stdio", "cli", "auth", "bootstrap", "config"]
+# Integration-test harness: spawn a consumer's server binary and drive it with a real rmcp
+# CLIENT over both transports. Its own feature (not in `full`/`default`) so production builds
+# never pull the client deps; consumers enable it as a dev-dependency. Compiled in CI via
+# --all-features.
+test-harness = ["dep:rmcp", "rmcp/client", "rmcp/transport-child-process", "rmcp/transport-streamable-http-client-reqwest", "dep:tokio", "tokio/process", "tokio/net", "tokio/time", "dep:serde_json"]
 # All infrastructure (incl. stdio); batteries-included default for un-migrated consumers.
 full = ["auth", "config", "sse", "streamable-http", "stdio", "bootstrap"]
 
@@ -38,10 +54,14 @@ full = ["auth", "config", "sse", "streamable-http", "stdio", "bootstrap"]
 # Web / auth features (axum stack)
 axum = { version = "0.8", optional = true }
 tower = { version = "0.5", optional = true }
-tower-http = { version = "0.6", features = ["fs", "cors", "compression-gzip"], optional = true }
+tower-http = { version = "0.6", features = ["fs", "compression-gzip"], optional = true }
 base64 = { version = "0.22", optional = true }
-# Constant-time token comparison (auth).
+# Constant-time token comparison (auth + web login).
 subtle = { version = "2", optional = true }
+# Web login: SameSite=Strict signed session cookie (axum-extra).
+axum-extra = { version = "0.10", features = ["cookie-signed"], optional = true }
+# TypeScript bindings for the web data contract (ts-export feature; consumed by an export test).
+ts-rs = { version = "12", optional = true }
 
 # Config feature - CSPRNG-backed token generation (OS entropy).
 getrandom = { version = "0.4", optional = true }
@@ -71,6 +91,23 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 axum = { version = "0.8" }
 tower = { version = "0.5", features = ["util"] }
 tempfile = "3"
+
+# Build-time only: compiles the web-ui shell when the `web-ui` feature is enabled.
+# web_modules' default features (typescript + scss + tera) are the oxc/grass/tera compile
+# toolchain (no server runtime). build.rs no-ops without CARGO_FEATURE_WEB_UI.
+[build-dependencies]
+web_modules = { version = "0.2", features = ["typescript", "scss", "tera"] }
+walkdir = "2"
+# Hash the inlined import-map script so the runtime CSP can allow it via 'sha256-...'.
+sha2 = "0.10"
+base64 = "0.22"
+
+# Root cargo commands act on mcp-core; build the demo with `-p mcp-ui-demo`. resolver 2
+# keeps the build-dependency's compiler features out of the lean runtime graph.
+[workspace]
+members = ["examples/mcp-ui-demo"]
+default-members = ["."]
+resolver = "2"
 
 [lib]
 name = "mcp_core"

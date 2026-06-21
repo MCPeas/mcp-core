@@ -1,0 +1,60 @@
+// SPDX-FileCopyrightText: 2025-2026 Stefan Grönke <stefan@gronke.net>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+// mcp-core shell styles: stock Bootstrap 5, compiled from its vendored SCSS sources (no
+// Node, no dart-sass - grass does it at build time), plus a few layout rules. To theme,
+// set Bootstrap's `!default` variables (e.g. `$primary`) above the import.
+
+@import "web_modules/bootstrap/scss/bootstrap";
+
+// The shell fills the viewport; the content router and its sandbox stretch to fill
+// the content pane.
+html,
+body {
+  height: 100%;
+}
+
+.mcp-content-host,
+.mcp-sandbox {
+  min-height: 60vh;
+}
+
+// The content pane (`.mcp-content`) is a flex column; the active view fills it and scrolls
+// internally rather than overflowing the pane (which is `overflow-hidden`). `min-height: 0`
+// is what lets a flex child shrink below its content height so its own overflow engages.
+mcp-layout-full,
+mcp-layout-list {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+// Full-page layouts (e.g. the operations explorer) scroll as a whole; list layouts scroll
+// their panes individually via the `overflow-auto` columns.
+.mcp-layout-full {
+  overflow: auto;
+}
+
+// Custom elements default to display:inline; the shell's structural ones are block-level
+// layout containers, so heights resolve and backgrounds fill their column.
+mcp-app-shell,
+mcp-top-nav,
+mcp-sidebar,
+mcp-content-router,
+mcp-catalog-list,
+mcp-search-list,
+mcp-operations {
+  display: block;
+}
+
+// The sidebar nav fills its full-height host so its background spans the whole column.
+.mcp-sidebar {
+  height: 100%;
+}
+
+// List/detail panes are bounded to the row height so their `overflow-auto` actually scrolls;
+// as flex items in the row they would otherwise stretch to their content height (no scroll).
+.mcp-list-pane,
+.mcp-detail-pane {
+  height: 100%;
+  min-height: 0;
+}

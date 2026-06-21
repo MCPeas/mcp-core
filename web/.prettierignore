@@ -1,0 +1,5 @@
+node_modules
+target
+package-lock.json
+# Emitted by ts-rs (cargo test --features ts-export); the Rust types are the source of truth.
+src/shell/generated/

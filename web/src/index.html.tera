@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- The consumer MCP serves its declarative manifest here (see mcp_core::web). The shell
+         bakes a default empty manifest at this path, so a server with no consumer frontend
+         loads with built-in views only (no failed request). Consumers override it by serving
+         their own /app/components.js. -->
+    <meta name="mcp-ui-manifest" content="/app/components.js" />
+    <!-- Base URL of the REST API the built-in catalog/search views call. -->
+    <meta name="mcp-ui-api-base" content="/api" />
+    <!-- MCP endpoint (Streamable HTTP) the Operations console and tool actions call directly
+         via tools/list + tools/call. Present when the server runs with --mcp; the Operations
+         view degrades gracefully when it is unreachable. -->
+    <meta name="mcp-ui-mcp-endpoint" content="/mcp" />
+    {%- if markdown %}
+    <!-- Present only when the crate was built with the `web-markdown` feature: the shell then
+         renders markdown fields/content as HTML in a sandboxed iframe (via `marked`). -->
+    <meta name="mcp-ui-markdown" content="true" />
+    {%- endif %}
+    <title>MCP</title>
+    <!-- No favicon by default; the empty data URI avoids a 404 on /favicon.ico. -->
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/ui/styles.css" />
+    {{ importmap | safe }}
+    <script type="module" src="/ui/app.js"></script>
+  </head>
+  <body class="bg-body"></body>
+</html>
