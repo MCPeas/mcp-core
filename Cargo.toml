@@ -46,7 +46,7 @@ server = ["web", "sse", "streamable-http", "stdio", "cli", "auth", "bootstrap", 
 # CLIENT over both transports. Its own feature (not in `full`/`default`) so production builds
 # never pull the client deps; consumers enable it as a dev-dependency. Compiled in CI via
 # --all-features.
-test-harness = ["dep:rmcp", "rmcp/client", "rmcp/transport-child-process", "rmcp/transport-streamable-http-client-reqwest", "dep:tokio", "tokio/process", "tokio/net", "tokio/time", "dep:serde_json"]
+test-harness = ["dep:rmcp", "rmcp/client", "rmcp/transport-child-process", "rmcp/transport-streamable-http-client-reqwest", "dep:tokio", "tokio/process", "tokio/net", "tokio/time", "dep:serde", "dep:serde_json"]
 # All infrastructure (incl. stdio); batteries-included default for un-migrated consumers.
 full = ["auth", "config", "sse", "streamable-http", "stdio", "bootstrap"]
 
