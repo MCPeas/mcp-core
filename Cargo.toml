@@ -30,11 +30,16 @@ web = ["dep:axum", "dep:axum-extra", "dep:tower-http", "dep:tokio", "dep:subtle"
 # Build + serve the embedded Lit + Bootstrap UI shell (data-inspection front end).
 # Depends on the `web` harness (ServeDir/serve). The build-dependency compiles for every
 # build; the shell bake is gated on CARGO_FEATURE_WEB_UI in build.rs.
-web-ui = ["web", "dep:serde", "dep:serde_json"]
+web-ui = ["web", "dep:serde", "dep:serde_json", "dep:web_modules", "dep:include_dir"]
 # Render markdown fields/content as HTML in a sandboxed iframe. Vendors the `marked` browser
 # dependency and signals the shell (a meta tag) to use it; off by default so a UI that does not
 # render markdown never ships `marked`. Implies `web-ui`.
 web-markdown = ["web-ui"]
+# Local development only: live-reload the shell, compiling `web/src` (TS/SCSS) on the fly via
+# web_modules' `dev` server, with the embedded dist as fallback. Debug-only in effect (`auto()`
+# serves statically in release regardless). Heavy — pulls notify + the oxc/grass toolchain into
+# the *runtime* graph — so it must never be enabled in a release/CI build.
+web-ui-dev = ["web-ui", "web_modules/dev"]
 # Generate the TypeScript bindings for the web data contract (ts-rs). Off by default; enabled in CI
 # (`cargo test --all-features`), where an export test writes web/src/shell/generated/*.ts.
 ts-export = ["web-ui", "dep:ts-rs"]
@@ -62,6 +67,17 @@ subtle = { version = "2", optional = true }
 axum-extra = { version = "0.10", features = ["cookie-signed"], optional = true }
 # TypeScript bindings for the web data contract (ts-export feature; consumed by an export test).
 ts-rs = { version = "12", optional = true }
+
+# Runtime serving of the web-ui shell (web-ui feature). `Frontend` serves the shell that build.rs
+# bakes — embedded into the binary via `include_dir!` (release/CI) or live-compiled from web/src
+# (web-ui-dev). `axum` only: the oxc/grass compile toolchain stays in [build-dependencies] and the
+# (dev-only) `dev` feature, so a release build's runtime graph stays lean. resolver=2 keeps this
+# runtime copy separate from the build-dependency copy below.
+web_modules = { version = "0.2", default-features = false, features = ["axum"], optional = true }
+# The `include_dir!` macro must be a direct dependency: web_modules re-exports the `Dir` type but
+# the macro emits `include_dir::`-qualified paths that don't resolve through a re-export. Pin the
+# same minor as web_modules' own include_dir so the `Dir` type unifies for `Frontend::embedded`.
+include_dir = { version = "0.7", optional = true }
 
 # Config feature - CSPRNG-backed token generation (OS entropy).
 getrandom = { version = "0.4", optional = true }

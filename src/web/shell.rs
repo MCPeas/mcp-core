@@ -1,10 +1,12 @@
 // SPDX-FileCopyrightText: 2025-2026 Stefan Grönke <stefan@gronke.net>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The build-time-baked Lit + Bootstrap UI shell, served as static files under `/ui/`, plus
-//! the app composition that ties together the public landing/login page, the shell, the REST
-//! API, and an MCP router under one auth policy. See `build.rs` (the shell is compiled into
-//! `OUT_DIR` and its path exported as `MCP_UI_DIST`).
+//! The Lit + Bootstrap UI shell, **embedded into the binary** and served under `/ui/`, plus the
+//! app composition that ties together the public landing/login page, the shell, the REST API, and
+//! an MCP router under one auth policy. `build.rs` bakes the shell into `$OUT_DIR/web-ui-dist` (via
+//! the `web_modules` toolchain); `include_dir!` then embeds that dist into the binary, so a release
+//! image carrying only the binary still serves the UI — no external static dir, no `--static-dir`.
+//! A `web-ui-dev` debug build instead live-compiles the shell from `web/src` (browser live-reload).
 
 use std::path::PathBuf;
 
@@ -13,16 +15,31 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use tower_http::services::ServeDir;
+use include_dir::{include_dir, Dir};
+use web_modules::Frontend;
+
+/// The shell dist (`build.rs` → `$OUT_DIR/web-ui-dist`) embedded into the binary at compile time.
+/// Served from memory by [`ui_router`] — nothing needs to ship beside the binary.
+static SHELL_DIST: Dir<'static> = include_dir!("$OUT_DIR/web-ui-dist");
 
 use super::{info_page, login, logout, public_router, require_auth, Landing, WebAuth};
 
 /// Absolute path to the compiled shell dist baked by `build.rs` into `OUT_DIR`. Contains
 /// `index.html` (with the inlined import map), `app.js` + the compiled `shell/` / `renderers/`
 /// and `api/mcp-ui.js`, `styles.css`, and the vendored `web_modules/` - all referenced under
-/// `/ui/`, where this dist is mounted.
+/// `/ui/`. This is the on-disk bake that [`SHELL_DIST`] embeds into the binary.
 pub fn shell_dir() -> PathBuf {
     PathBuf::from(env!("MCP_UI_DIST"))
+}
+
+/// The shell as a nestable axum service. Release/CI (`web-ui`): served statically from the
+/// in-binary [`SHELL_DIST`]. A `web-ui-dev` debug build: live-compiled from `web/src` with browser
+/// live-reload (web_modules' dev server), falling back to the embedded dist. Mounted under `/ui`;
+/// the shell's assets resolve at `/ui/...` because the import map is baked with that prefix.
+fn ui_router() -> Router {
+    Frontend::embedded(&SHELL_DIST)
+        .source(concat!(env!("CARGO_MANIFEST_DIR"), "/web/src"))
+        .auto()
 }
 
 /// Assemble the whole app and protect it as a single unit:
@@ -54,7 +71,7 @@ pub fn app_router(
     let protected = Router::new()
         .nest(api_base, api_router)
         .merge(extra)
-        .nest_service("/ui", ServeDir::new(shell_dir()))
+        .nest_service("/ui", ui_router())
         .layer(from_fn_with_state(auth.clone(), require_auth));
 
     // Public: the landing/login page + login/logout, plus /health and /robots.txt.
@@ -90,13 +107,23 @@ mod tests {
     use axum::http::{Request, StatusCode};
     use tower::ServiceExt;
 
-    /// The baked shell dist exists and contains the rendered index.html + the mcp-ui API.
+    /// The shell is embedded **into the binary** (not served from a build-time path), so a slim
+    /// release image carrying only the binary still serves `/ui`. This is the regression guard for
+    /// the 404 that the old `ServeDir`-from-`$OUT_DIR` serving produced in a multi-stage image.
     #[test]
-    fn shell_dir_is_populated() {
-        let dir = shell_dir();
-        assert!(dir.join("index.html").is_file(), "index.html baked");
-        assert!(dir.join("api/mcp-ui.js").is_file(), "mcp-ui API baked");
-        assert!(dir.join("web_modules/lit").is_dir(), "lit vendored");
+    fn shell_is_embedded_in_the_binary() {
+        assert!(
+            SHELL_DIST.get_file("index.html").is_some(),
+            "index.html embedded"
+        );
+        assert!(
+            SHELL_DIST.get_file("api/mcp-ui.js").is_some(),
+            "mcp-ui API embedded"
+        );
+        assert!(
+            SHELL_DIST.get_dir("web_modules/lit").is_some(),
+            "lit vendored + embedded"
+        );
     }
 
     async fn status(app: Router, uri: &str, auth: Option<&str>) -> StatusCode {
