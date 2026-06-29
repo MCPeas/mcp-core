@@ -73,7 +73,7 @@ ts-rs = { version = "12", optional = true }
 # (web-ui-dev). `axum` only: the oxc/grass compile toolchain stays in [build-dependencies] and the
 # (dev-only) `dev` feature, so a release build's runtime graph stays lean. resolver=2 keeps this
 # runtime copy separate from the build-dependency copy below.
-web_modules = { version = "0.2", default-features = false, features = ["axum"], optional = true }
+web_modules = { version = "0.4", default-features = false, features = ["axum"], optional = true }
 # The `include_dir!` macro must be a direct dependency: web_modules re-exports the `Dir` type but
 # the macro emits `include_dir::`-qualified paths that don't resolve through a re-export. Pin the
 # same minor as web_modules' own include_dir so the `Dir` type unifies for `Frontend::embedded`.
@@ -112,7 +112,7 @@ tempfile = "3"
 # web_modules' default features (typescript + scss + tera) are the oxc/grass/tera compile
 # toolchain (no server runtime). build.rs no-ops without CARGO_FEATURE_WEB_UI.
 [build-dependencies]
-web_modules = { version = "0.2", features = ["typescript", "scss", "tera"] }
+web_modules = { version = "0.4", features = ["typescript", "scss", "tera", "minify"] }
 walkdir = "2"
 # Hash the inlined import-map script so the runtime CSP can allow it via 'sha256-...'.
 sha2 = "0.10"

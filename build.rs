@@ -82,6 +82,8 @@ fn build_shell() -> web_modules::Result<()> {
     importmap.insert("mcp-ui", "/ui/api/mcp-ui.js");
 
     // Only web/src is compiled + served; web/package.json and the tooling beside it stay out.
+    // Compile unminified: vendor_transform_runtime (below) scans this emitted JS for the oxc
+    // runtime import, and that scan is whitespace-sensitive -- minify happens last, over the dist.
     web_modules::typescript::compile_directory_with(&src, &out, &TranspileOptions::default())?;
     web_modules::scss::compile_directory(&src, &out, &[out.as_path()])?;
     web_modules::static_files::copy_static(&src, &out)?;
@@ -92,6 +94,12 @@ fn build_shell() -> web_modules::Result<()> {
         &out,
         "/ui/web_modules",
     )?);
+
+    // Minify all emitted JS (ours + vendored) for a smaller embedded dist. Must run AFTER
+    // vendor_transform_runtime: its scan matches `from "` (with a space), so a minified `from"`
+    // would hide the @oxc-project runtime import and it would never get vendored. CSS is already
+    // compressed by the scss default.
+    web_modules::minify::minify_directory(&out)?;
 
     // CSP: hash the inline import-map script's content - the bytes between the tags, which is
     // what the browser hashes - so the runtime CSP can allow exactly it via script-src
