@@ -2,6 +2,8 @@
 name = "mcp-ui-demo"
 version = "0.1.0"
 edition = "2021"
+authors = ["Stefan Grönke <stefan@gronke.net>"]
+license = "AGPL-3.0-or-later"
 publish = false
 
 [dependencies]

@@ -1,0 +1,43 @@
+# REUSE.toml — machine-readable license annotations for files without an inline header.
+# The Rust, TypeScript, SCSS, and JavaScript sources carry their own SPDX headers; this
+# file covers generated code, configuration, documentation, lockfiles, and the bundled
+# license copy. See https://reuse.software/spec/ for the REUSE specification.
+
+version = 1
+
+# --- Files without an inline header (config, templates, docs, manifests, lockfiles, this file) ---
+[[annotations]]
+path = [
+    ".cargo/config.toml",
+    ".github/workflows/ci.yml",
+    ".gitignore",
+    "Cargo.toml",
+    "Cargo.lock",
+    "README.md",
+    "REUSE.toml",
+    "docs/**",
+    "examples/mcp-ui-demo/Cargo.toml",
+    "web/.prettierignore",
+    "web/.prettierrc.json",
+    "web/eslint.config.js",
+    "web/package.json",
+    "web/package-lock.json",
+    "web/src/index.html.tera",
+    "web/tsconfig.json",
+]
+SPDX-FileCopyrightText = "Stefan Grönke <stefan@gronke.net>"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+# --- Generated TypeScript bindings (ts-rs output; regenerated, never hand-edited) ---
+[[annotations]]
+path = "web/src/shell/generated/**"
+SPDX-FileCopyrightText = "Stefan Grönke <stefan@gronke.net>"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+# --- The verbatim license copy kept at the repository root so GitHub detects the license.
+# --- The canonical copy for REUSE lives at LICENSES/AGPL-3.0-or-later.txt; this duplicate
+# --- carries the GNU AGPLv3 text, whose copyright is held by the Free Software Foundation. ---
+[[annotations]]
+path = "LICENSE"
+SPDX-FileCopyrightText = "2007 Free Software Foundation, Inc. <https://fsf.org/>"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
