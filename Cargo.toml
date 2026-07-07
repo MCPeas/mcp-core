@@ -61,7 +61,7 @@ full = ["auth", "config", "sse", "streamable-http", "stdio", "bootstrap"]
 # Web / auth features (axum stack)
 axum = { version = "0.8", optional = true }
 tower = { version = "0.5", optional = true }
-tower-http = { version = "0.6", features = ["fs", "compression-gzip"], optional = true }
+tower-http = { version = "0.7", features = ["fs", "compression-gzip"], optional = true }
 base64 = { version = "0.22", optional = true }
 # Constant-time token comparison (auth + web login).
 subtle = { version = "2", optional = true }
