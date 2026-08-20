@@ -11,10 +11,7 @@ use std::{collections::HashMap, sync::Arc, time::Duration};
 use axum::{
     extract::{Query, State},
     http::StatusCode,
-    response::{
-        sse::{Event, Sse},
-        Response,
-    },
+    response::sse::{Event, Sse},
     routing::{get, post},
     Json, Router,
 };
@@ -174,7 +171,7 @@ impl Drop for SessionDropGuard {
 
 async fn sse_handler(
     State(app): State<SseApp>,
-) -> Result<Sse<impl Stream<Item = Result<Event, std::io::Error>>>, Response<String>> {
+) -> Result<Sse<impl Stream<Item = Result<Event, std::io::Error>>>, (StatusCode, String)> {
     let session_id = generate_session_id();
     tracing::info!(%session_id, "new SSE connection");
 
@@ -199,9 +196,10 @@ async fn sse_handler(
     if app.transport_tx.send(transport).is_err() {
         tracing::warn!("failed to send transport - server may be closing");
         app.txs.write().await.remove(&session_id);
-        let mut response = Response::new("server is closing".to_string());
-        *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
-        return Err(response);
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "server is closing".to_string(),
+        ));
     }
 
     let post_path = app.post_path.as_ref();
