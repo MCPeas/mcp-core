@@ -57,9 +57,19 @@ pub mod web;
 #[cfg(feature = "test-harness")]
 pub mod testing;
 
+// Char-boundary-safe text slicing — pure, no transport deps.
+pub mod text;
+
+// Response-size budget for MCP tool results; needs the rmcp server types that
+// the transport features pull in.
+#[cfg(any(feature = "sse", feature = "streamable-http", feature = "stdio"))]
+pub mod budget;
+
 // Re-exports for convenience
 #[cfg(feature = "auth")]
 pub use auth::{TokenAuthLayer, TokenAuthService};
+#[cfg(any(feature = "sse", feature = "streamable-http", feature = "stdio"))]
+pub use budget::{enforce_response_budget, BudgetedHandler, DEFAULT_MAX_RESPONSE_CHARS};
 
 #[cfg(feature = "config")]
 pub use config::{generate_random_token, safe_resolve, BaseConfig, SafePathError};

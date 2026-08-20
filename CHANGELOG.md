@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); rel
 ## [Unreleased]
 
 ### Added
+- `budget`: `BudgetedHandler<H>`, a transparent `ServerHandler` wrapper that caps `call_tool` results at a character budget and returns a machine-readable `response_exceeds_budget` error (measured size, budget, recovery hint) when exceeded; plus the free `enforce_response_budget` and `DEFAULT_MAX_RESPONSE_CHARS`.
+  Gated on the transport features.
+  Wrap once and pass to every transport so oversized responses fail actionably instead of tripping the client's output cap.
+- `text`: char-boundary-safe slicing helpers (`floor_char_boundary`, `ceil_char_boundary`, `char_safe_chunk`) for chunking large payloads without splitting UTF-8.
 - CI gates: per-feature builds (cargo-hack), dependency and license audit (cargo-deny), REUSE lint.
 - `rust-version` (MSRV) 1.95, Dependabot updates, and a security policy (`SECURITY.md`).
 
