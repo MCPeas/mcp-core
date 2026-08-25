@@ -66,7 +66,7 @@ base64 = { version = "0.22", optional = true }
 # Constant-time token comparison (auth + web login).
 subtle = { version = "2", optional = true }
 # Web login: SameSite=Strict signed session cookie (axum-extra).
-axum-extra = { version = "0.10", features = ["cookie-signed"], optional = true }
+axum-extra = { version = "0.12", features = ["cookie-signed"], optional = true }
 # TypeScript bindings for the web data contract (ts-export feature; consumed by an export test).
 ts-rs = { version = "12", optional = true }
 
