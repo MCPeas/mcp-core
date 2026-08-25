@@ -21,26 +21,26 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: gronke/rust-ci/.github/actions/install-toolchain@v1.5.0
+        uses: gronke/rust-ci/.github/actions/install-toolchain@v1.6.1
         with:
           components: rustfmt clippy
 
       # Replaces the hand-rolled restore/save pair; incremental compilation defaults off in CI.
       - name: Cache cargo
-        uses: gronke/rust-ci/.github/actions/rust-cache@v1.5.0
+        uses: gronke/rust-ci/.github/actions/rust-cache@v1.6.1
         with:
           prefix: test
           cache-target: "true"
 
       - name: Lint and test (all features)
-        uses: gronke/rust-ci/.github/actions/lint-and-test@v1.5.0
+        uses: gronke/rust-ci/.github/actions/lint-and-test@v1.6.1
         with:
           features: "--all-features"
 
       # A second feature universe: the crate's point is slim opt-in graphs, so the bare build
       # must stay green too. fmt is universe-independent and already ran above.
       - name: Lint and test (no default features)
-        uses: gronke/rust-ci/.github/actions/lint-and-test@v1.5.0
+        uses: gronke/rust-ci/.github/actions/lint-and-test@v1.6.1
         with:
           features: "--no-default-features"
           fmt: "false"
@@ -57,10 +57,10 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: gronke/rust-ci/.github/actions/install-toolchain@v1.5.0
+        uses: gronke/rust-ci/.github/actions/install-toolchain@v1.6.1
 
       - name: Cache cargo
-        uses: gronke/rust-ci/.github/actions/rust-cache@v1.5.0
+        uses: gronke/rust-ci/.github/actions/rust-cache@v1.6.1
         with:
           prefix: features
 
@@ -123,10 +123,10 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: gronke/rust-ci/.github/actions/install-toolchain@v1.5.0
+        uses: gronke/rust-ci/.github/actions/install-toolchain@v1.6.1
 
       - name: Cache cargo
-        uses: gronke/rust-ci/.github/actions/rust-cache@v1.5.0
+        uses: gronke/rust-ci/.github/actions/rust-cache@v1.6.1
         with:
           prefix: e2e
           cache-target: "true"
