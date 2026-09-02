@@ -8,7 +8,7 @@ publish = false
 
 [dependencies]
 mcp-core = { path = "../..", features = ["web-ui", "web-markdown", "streamable-http", "stdio", "config", "bootstrap", "auth", "cli"] }
-rmcp = { version = "1.7", features = ["server", "transport-streamable-http-server", "transport-io", "macros"] }
+rmcp = { version = "3.1", features = ["server", "transport-streamable-http-server", "transport-io", "macros"] }
 clap = { version = "4.5", features = ["derive", "env"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 tower-http = { version = "0.7", features = ["fs"] }
