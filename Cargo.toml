@@ -62,7 +62,7 @@ full = ["auth", "config", "sse", "streamable-http", "stdio", "bootstrap"]
 axum = { version = "0.8", optional = true }
 tower = { version = "0.5", optional = true }
 tower-http = { version = "0.7", features = ["fs", "compression-gzip"], optional = true }
-base64 = { version = "0.22", optional = true }
+base64 = { version = "0.23", optional = true }
 # Constant-time token comparison (auth + web login).
 subtle = { version = "2", optional = true }
 # Web login: SameSite=Strict signed session cookie (axum-extra).
@@ -75,7 +75,7 @@ ts-rs = { version = "12", optional = true }
 # (web-ui-dev). `axum` only: the oxc/grass compile toolchain stays in [build-dependencies] and the
 # (dev-only) `dev` feature, so a release build's runtime graph stays lean. resolver=2 keeps this
 # runtime copy separate from the build-dependency copy below.
-web_modules = { version = "0.5", default-features = false, features = ["axum"], optional = true }
+web_modules = { version = "0.7", default-features = false, features = ["axum"], optional = true }
 # The `include_dir!` macro must be a direct dependency: web_modules re-exports the `Dir` type but
 # the macro emits `include_dir::`-qualified paths that don't resolve through a re-export. Pin the
 # same minor as web_modules' own include_dir so the `Dir` type unifies for `Frontend::embedded`.
@@ -91,7 +91,7 @@ clap = { version = "4.5", features = ["derive", "env"], optional = true }
 # service and ServerHandler types the transports build on. rmcp 1.7's core no longer
 # pulls axum, so this crate supplies axum itself for the sse/web/streamable-http harnesses;
 # a stdio-only build still stays axum-free.
-rmcp = { version = "1.7", optional = true }
+rmcp = { version = "3.1", optional = true }
 tokio = { version = "1", features = ["sync", "net", "rt"], optional = true }
 tokio-stream = { version = "0.1", optional = true }
 tokio-util = { version = "0.7", optional = true }
@@ -115,11 +115,11 @@ serde_json = "1"
 # web_modules' default features (typescript + scss + tera) are the oxc/grass/tera compile
 # toolchain (no server runtime). build.rs no-ops without CARGO_FEATURE_WEB_UI.
 [build-dependencies]
-web_modules = { version = "0.5", features = ["typescript", "scss", "tera", "minify"] }
+web_modules = { version = "0.7", features = ["typescript", "scss", "tera", "minify"] }
 walkdir = "2"
 # Hash the inlined import-map script so the runtime CSP can allow it via 'sha256-...'.
 sha2 = "0.11"
-base64 = "0.22"
+base64 = "0.23"
 
 # Root cargo commands act on mcp-core; build the demo with `-p mcp-ui-demo`. resolver 2
 # keeps the build-dependency's compiler features out of the lean runtime graph.
